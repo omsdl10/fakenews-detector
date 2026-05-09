@@ -65,7 +65,7 @@ using attention weights or SHAP values.
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/fakenews-detector.git
+git clone https://github.com/omsdl10/fakenews-detector.git
 cd fakenews-detector
 
 # 2. Copy and configure environment variables
