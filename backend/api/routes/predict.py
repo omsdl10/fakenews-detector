@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 import time
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -23,9 +23,6 @@ from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.db.crud import create_article, create_prediction
 from backend.db.session import get_db
-from backend.ml.explainer import build_explanation
-from backend.ml.model import FakeNewsInference
-from backend.retrieval.search import EvidenceRetriever
 from backend.scraper.article_scraper import ArticleScraper
 from backend.schemas.request_response import (
     EvidenceItem,
@@ -139,7 +136,7 @@ async def predict(
     request: PredictRequest,
     db: AsyncSession = Depends(get_db),
     cache=Depends(get_cache),
-    model: FakeNewsInference = Depends(get_inference_model),
+    model: Any = Depends(get_inference_model),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ) -> PredictResponse:
     """
@@ -189,6 +186,8 @@ async def predict(
     if model.model is None or model.tokenizer is None:
         explanation_data = _fallback_explanation(article_text, prediction)
     else:
+        from backend.ml.explainer import build_explanation
+
         explanation_data = build_explanation(
             model=model.model,
             tokenizer=model.tokenizer,
@@ -222,7 +221,7 @@ async def predict(
     if request.retrieve_evidence and not settings.LIGHTWEIGHT_MODE:
         from backend.api.dependencies import get_retriever
 
-        retriever: EvidenceRetriever = get_retriever()
+        retriever = get_retriever()
         raw_evidence = retriever.retrieve(
             query_text=article_text,
             top_k=settings.TOP_K_EVIDENCE,

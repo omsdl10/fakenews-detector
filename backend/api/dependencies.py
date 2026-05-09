@@ -6,7 +6,7 @@ Singletons are created once at startup and shared across requests.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, status
@@ -16,10 +16,11 @@ from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.security import decode_access_token
 from backend.db.session import get_db
-from backend.ml.model import FakeNewsInference
-from backend.ml.embedder import ArticleEmbedder
-from backend.retrieval.faiss_store import FAISSStore
-from backend.retrieval.search import EvidenceRetriever
+
+if get_settings().LIGHTWEIGHT_MODE:
+    from backend.ml.model_lightweight import FakeNewsInference
+else:
+    from backend.ml.model import FakeNewsInference
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -29,9 +30,9 @@ bearer_scheme = HTTPBearer(auto_error=False)
 # ── ML model (loaded once, shared) ───────────────────────────────────────────
 
 _inference_model: Optional[FakeNewsInference] = None
-_embedder: Optional[ArticleEmbedder] = None
-_faiss_store: Optional[FAISSStore] = None
-_retriever: Optional[EvidenceRetriever] = None
+_embedder: Optional[Any] = None
+_faiss_store: Optional[Any] = None
+_retriever: Optional[Any] = None
 
 
 def get_inference_model() -> FakeNewsInference:
@@ -41,26 +42,47 @@ def get_inference_model() -> FakeNewsInference:
     return _inference_model
 
 
-def get_embedder() -> ArticleEmbedder:
+def get_embedder() -> Any:
     global _embedder
+    if settings.LIGHTWEIGHT_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Evidence embeddings are disabled in lightweight deployment mode.",
+        )
     if _embedder is None:
+        from backend.ml.embedder import ArticleEmbedder
+
         _embedder = ArticleEmbedder()
     return _embedder
 
 
-def get_faiss_store() -> FAISSStore:
+def get_faiss_store() -> Any:
     global _faiss_store
+    if settings.LIGHTWEIGHT_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Evidence search is disabled in lightweight deployment mode.",
+        )
     if _faiss_store is None:
+        from backend.retrieval.faiss_store import FAISSStore
+
         _faiss_store = FAISSStore()
     return _faiss_store
 
 
 def get_retriever(
-    faiss_store: FAISSStore = Depends(get_faiss_store),
-    embedder: ArticleEmbedder = Depends(get_embedder),
-) -> EvidenceRetriever:
+    faiss_store: Any = Depends(get_faiss_store),
+    embedder: Any = Depends(get_embedder),
+) -> Any:
     global _retriever
+    if settings.LIGHTWEIGHT_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Evidence retrieval is disabled in lightweight deployment mode.",
+        )
     if _retriever is None:
+        from backend.retrieval.search import EvidenceRetriever
+
         _retriever = EvidenceRetriever(faiss_store=faiss_store, embedder=embedder)
     return _retriever
 

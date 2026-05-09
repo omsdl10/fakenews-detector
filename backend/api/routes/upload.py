@@ -3,6 +3,8 @@ POST /api/v1/upload-article   — ingest an article into the corpus
 GET  /api/v1/search-evidence  — semantic evidence search
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +12,6 @@ from backend.api.dependencies import get_current_user, get_retriever
 from backend.core.logging import get_logger
 from backend.db.crud import create_article, update_article_faiss_id
 from backend.db.session import get_db
-from backend.retrieval.search import EvidenceRetriever
 from backend.schemas.request_response import (
     SearchEvidenceRequest,
     SearchEvidenceResponse,
@@ -33,7 +34,7 @@ logger = get_logger(__name__)
 async def upload_article(
     request: UploadArticleRequest,
     db: AsyncSession = Depends(get_db),
-    retriever: EvidenceRetriever = Depends(get_retriever),
+    retriever: Any = Depends(get_retriever),
 ) -> UploadArticleResponse:
     """
     Index an article for evidence retrieval.
@@ -85,7 +86,7 @@ async def upload_article(
 )
 async def search_evidence(
     request: SearchEvidenceRequest,
-    retriever: EvidenceRetriever = Depends(get_retriever),
+    retriever: Any = Depends(get_retriever),
 ) -> SearchEvidenceResponse:
     """
     Semantic search over the indexed article corpus.
