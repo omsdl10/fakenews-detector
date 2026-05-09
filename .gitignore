@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.cache/
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# ML artefacts (large binary files — store in S3 or DVC)
+models/fakenews_roberta/
+models/faiss_index/
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# Data (raw datasets — download via script)
+data/raw/
+data/processed/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker
+*.override.yml
+
+# macOS
+.DS_Store
