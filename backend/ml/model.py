@@ -136,8 +136,20 @@ class FakeNewsInference:
         model_path = model_path or settings.CLASSIFIER_MODEL_PATH
         weights_path = Path(model_path) / "pytorch_model.bin"
         self.is_finetuned = weights_path.exists()
+        self.is_lightweight = settings.LIGHTWEIGHT_MODE and not self.is_finetuned
 
         logger.info("Loading classifier", path=model_path, device=settings.DEVICE)
+
+        if self.is_lightweight:
+            logger.warning(
+                "Lightweight mode enabled and fine-tuned model not found; "
+                "using source-reputation fallback without loading RoBERTa",
+                path=model_path,
+            )
+            self.model = None
+            self.tokenizer = None
+            logger.info("Classifier ready in lightweight fallback mode")
+            return
 
         if self.is_finetuned:
             self.model = self._load_finetuned(model_path)

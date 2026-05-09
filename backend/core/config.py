@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     MAX_SEQ_LENGTH: int = 512
     INFERENCE_BATCH_SIZE: int = 8
     DEVICE: str = "cpu"  # "cuda" when GPU is available
+    LIGHTWEIGHT_MODE: bool = False  # skip heavyweight ML loads for small hosts
 
     # ── FAISS ────────────────────────────────────────────────────────────────
     FAISS_INDEX_PATH: str = "models/faiss_index/articles.index"

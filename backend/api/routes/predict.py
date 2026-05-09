@@ -18,7 +18,6 @@ from backend.api.dependencies import (
     get_cache,
     get_current_user_optional,
     get_inference_model,
-    get_retriever,
 )
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -74,6 +73,58 @@ def _text_from_url_fallback(url: str) -> str:
     )
 
 
+def _fallback_explanation(article_text: str, prediction: dict) -> dict:
+    """Build a light explanation when no transformer model is loaded."""
+    words = re.findall(r"[A-Za-z][A-Za-z'-]{3,}", article_text)
+    stopwords = {
+        "about",
+        "after",
+        "also",
+        "article",
+        "from",
+        "have",
+        "that",
+        "this",
+        "with",
+    }
+    seen = set()
+    token_importance = []
+    for word in words:
+        clean = word.strip("'").lower()
+        if clean in stopwords or clean in seen:
+            continue
+        seen.add(clean)
+        token_importance.append({
+            "token": word,
+            "score": max(0.1, round(1.0 - (len(token_importance) * 0.08), 4)),
+            "char_start": article_text.lower().find(clean),
+            "char_end": article_text.lower().find(clean) + len(clean),
+        })
+        if len(token_importance) >= 8:
+            break
+
+    fallback_reason = prediction.get(
+        "fallback_reason",
+        "A fine-tuned fake-news classifier is not installed.",
+    )
+    if prediction["label"] == "real":
+        summary = (
+            f"{fallback_reason} This is a source-reputation signal, not a full "
+            "content-level fact check."
+        )
+    else:
+        summary = (
+            f"{fallback_reason} The app is avoiding a fake/real guess until "
+            "trained weights are available."
+        )
+
+    return {
+        "method": "lightweight_fallback",
+        "token_importance": token_importance,
+        "reasoning_summary": summary,
+    }
+
+
 @router.post(
     "/",
     response_model=PredictResponse,
@@ -89,7 +140,6 @@ async def predict(
     db: AsyncSession = Depends(get_db),
     cache=Depends(get_cache),
     model: FakeNewsInference = Depends(get_inference_model),
-    retriever: EvidenceRetriever = Depends(get_retriever),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ) -> PredictResponse:
     """
@@ -136,15 +186,18 @@ async def predict(
     prediction = model.predict(article_text, source_domain=source_domain)
 
     # ── 4. Explainability ──────────────────────────────────────────────────
-    explanation_data = build_explanation(
-        model=model.model,
-        tokenizer=model.tokenizer,
-        text=article_text,
-        predicted_label=prediction["label"],
-        probabilities=prediction["probabilities"],
-        device=model.device,
-        deep_explain=request.deep_explain,
-    )
+    if model.model is None or model.tokenizer is None:
+        explanation_data = _fallback_explanation(article_text, prediction)
+    else:
+        explanation_data = build_explanation(
+            model=model.model,
+            tokenizer=model.tokenizer,
+            text=article_text,
+            predicted_label=prediction["label"],
+            probabilities=prediction["probabilities"],
+            device=model.device,
+            deep_explain=request.deep_explain,
+        )
     if not model.is_finetuned:
         fallback_reason = prediction.get(
             "fallback_reason",
@@ -166,7 +219,10 @@ async def predict(
 
     # ── 5. Evidence retrieval ──────────────────────────────────────────────
     evidence_items: list[EvidenceItem] = []
-    if request.retrieve_evidence:
+    if request.retrieve_evidence and not settings.LIGHTWEIGHT_MODE:
+        from backend.api.dependencies import get_retriever
+
+        retriever: EvidenceRetriever = get_retriever()
         raw_evidence = retriever.retrieve(
             query_text=article_text,
             top_k=settings.TOP_K_EVIDENCE,

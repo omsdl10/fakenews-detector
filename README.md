@@ -342,6 +342,7 @@ DATABASE_URL=${{Postgres.DATABASE_URL}}
 SECRET_KEY=<a long random value>
 DEBUG=false
 LOG_JSON=true
+LIGHTWEIGHT_MODE=true
 ```
 
 Redis is optional. If you add a Redis service, also set `REDIS_URL` to that service URL.

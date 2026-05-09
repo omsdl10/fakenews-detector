@@ -82,22 +82,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Database
     await init_db()
 
-    # ML model (loads weights from disk or downloads base model)
+    # ML model (loads weights from disk or uses lightweight fallback mode)
     model = get_inference_model()
     logger.info("Classifier loaded", device=settings.DEVICE)
 
-    # Embedder
-    embedder = get_embedder()
-    logger.info("Embedder loaded")
+    store = None
+    if not settings.LIGHTWEIGHT_MODE:
+        # Embedder
+        embedder = get_embedder()
+        logger.info("Embedder loaded")
 
-    # FAISS
-    store = get_faiss_store()
-    logger.info("FAISS index ready", n_vectors=store.size)
+        # FAISS
+        store = get_faiss_store()
+        logger.info("FAISS index ready", n_vectors=store.size)
+    else:
+        logger.info("Lightweight mode enabled; skipping embedder and FAISS startup")
 
     yield  # ← application serves requests here
 
     logger.info("Shutting down — persisting FAISS index")
-    store.persist()
+    if store is not None:
+        store.persist()
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -142,6 +147,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "version": settings.APP_VERSION,
             "model_loaded": _inference_model is not None,
+            "lightweight_mode": settings.LIGHTWEIGHT_MODE,
             "index_size": _faiss_store.size if _faiss_store else 0,
         }
 
