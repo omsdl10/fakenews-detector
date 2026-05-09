@@ -1,0 +1,55 @@
+# Stage 1: build React frontend
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm ci --silent
+
+COPY frontend/ ./frontend/
+ENV VITE_API_URL=/api/v1
+RUN cd frontend && npm run build
+
+
+# Stage 2: install Python dependencies
+FROM python:3.11-slim AS backend-builder
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+
+# Stage 3: runtime
+FROM python:3.11-slim
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=backend-builder /install /usr/local
+COPY backend/ ./backend/
+COPY scripts/ ./scripts/
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+RUN useradd -m -u 1000 appuser \
+    && mkdir -p /app/models/faiss_index /app/.cache/huggingface /app/.cache/sentence-transformers /app/.cache/torch /app/.cache/matplotlib \
+    && chown -R appuser:appuser /app
+
+USER appuser
+
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV HF_HOME=/app/.cache/huggingface
+ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence-transformers
+ENV TORCH_HOME=/app/.cache/torch
+ENV MPLCONFIGDIR=/app/.cache/matplotlib
+
+EXPOSE 8000
+
+CMD uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1

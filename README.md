@@ -327,6 +327,29 @@ fakenews-detector/
 
 ---
 
+## Railway Deployment
+
+This repo includes `railway.json` and `docker/Dockerfile.railway` so Railway can build one service that serves both the React frontend and the FastAPI backend.
+
+1. Push the repo to GitHub.
+2. In Railway, create a new project and choose **Deploy from GitHub repo**.
+3. Select `omsdl10/fakenews-detector`.
+4. Add a PostgreSQL service in the same Railway project.
+5. In the app service variables, set:
+
+```
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+SECRET_KEY=<a long random value>
+DEBUG=false
+LOG_JSON=true
+```
+
+Redis is optional. If you add a Redis service, also set `REDIS_URL` to that service URL.
+
+After the deployment succeeds, open the service settings, go to Networking, and generate a public Railway domain. The frontend will be available at that domain, and the backend health check will be at `/api/v1/health`.
+
+---
+
 ## Performance Benchmarks
 
 | Scenario | Latency (CPU) | Latency (GPU T4) |
