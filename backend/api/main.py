@@ -79,8 +79,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Load all resources on startup; release on shutdown."""
     logger.info("Starting up", app=settings.APP_NAME, version=settings.APP_VERSION)
 
-    # Database
-    await init_db()
+    try:
+        await init_db()
+    except Exception as exc:
+        if not settings.LIGHTWEIGHT_MODE:
+            raise
+        logger.warning(
+            "Database unavailable in lightweight mode; continuing without DB",
+            error=str(exc),
+        )
 
     # ML model (loads weights from disk or uses lightweight fallback mode)
     model = get_inference_model()
