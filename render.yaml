@@ -2,7 +2,7 @@ services:
   - type: web
     name: fakenews-detector
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./docker/Dockerfile.render
     healthCheckPath: /api/v1/health
     autoDeployTrigger: commit
@@ -41,10 +41,10 @@ services:
 
   - type: keyvalue
     name: fakenews-detector-cache
-    plan: starter
+    plan: free
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
 
 databases:
   - name: fakenews-detector-db
-    plan: starter
+    plan: free
