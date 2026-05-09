@@ -14,8 +14,18 @@ from backend.core.logging import get_logger
 logger = get_logger(__name__)
 settings = get_settings()
 
+
+def _normalise_database_url(url: str) -> str:
+    """Render provides postgresql:// URLs; SQLAlchemy async needs asyncpg."""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return url
+
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    _normalise_database_url(settings.DATABASE_URL),
     echo=settings.DEBUG,         # SQL query logging in debug mode
     pool_size=10,
     max_overflow=20,

@@ -13,11 +13,13 @@ report readiness before accepting traffic.
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.api.dependencies import get_embedder, get_faiss_store, get_inference_model
 from backend.api.middleware import LoggingMiddleware, RateLimitMiddleware
@@ -157,6 +159,15 @@ def create_app() -> FastAPI:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "Internal server error. Please try again later."},
         )
+
+    # ── Production SPA hosting ────────────────────────────────────────────
+    static_dir_candidates = [
+        Path("frontend/dist"),
+        Path("/app/frontend/dist"),
+    ]
+    static_dir = next((p for p in static_dir_candidates if p.exists()), None)
+    if static_dir:
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 
     return app
 
