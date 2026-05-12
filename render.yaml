@@ -34,6 +34,8 @@ services:
         value: sentence-transformers/all-mpnet-base-v2
       - key: DEVICE
         value: cpu
+      - key: LIGHTWEIGHT_MODE
+        value: true
       - key: ALLOWED_ORIGINS
         value: '["https://fakenews-detector.onrender.com"]'
       - key: LOG_JSON

@@ -1,4 +1,4 @@
-# ── Stage 1: build React frontend ────────────────────────────────────────────
+# Stage 1: build React frontend
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
@@ -10,7 +10,7 @@ ENV VITE_API_URL=/api/v1
 RUN cd frontend && npm run build
 
 
-# ── Stage 2: install Python dependencies ─────────────────────────────────────
+# Stage 2: install Python dependencies
 FROM python:3.11-slim AS backend-builder
 
 WORKDIR /app
@@ -19,11 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY requirements-railway.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements-railway.txt
 
 
-# ── Stage 3: runtime ─────────────────────────────────────────────────────────
+# Stage 3: runtime
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -45,6 +45,7 @@ USER appuser
 ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV LIGHTWEIGHT_MODE=true
 ENV HF_HOME=/app/.cache/huggingface
 ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence-transformers
 ENV TORCH_HOME=/app/.cache/torch
